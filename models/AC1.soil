@@ -1,0 +1,14 @@
+
+reset
+!new Test('t1')
+--!t1.init_scenario_3()
+--!t1.init_scenario_4()
+!t1.init_scenario_6()
+?t1.timestamp
+?t1.numUsers
+?t1.numHappyUsers
+?t1.requestedTemp
+?t1.optimalTemp
+?t1.distanceToBeacon
+?t1.usernameBeep
+?t1.insideRecord

@@ -1,0 +1,358 @@
+model AC
+
+class DigitalAvatar < ActiveObject 
+  attributes
+    initialDistance: Real
+    currentDistance: Real
+    comfortableTemp: Real init: 21.0
+    nextBeep: Integer init: 1.poisson
+    beepPeriod: Integer init: 60
+    name: String
+
+  operations
+    init()
+      begin
+        declare p: PositionsTable;
+        p := new PositionsTable();
+        insert(self, p) into Table;
+      end
+
+    setInitialPosition()
+      begin
+        self.initialDistance := (self.p.positions -> first()).position;
+        self.currentDistance := self.initialDistance.poisson;
+        self.nextBeep := (self.p.positions -> first()).moment;
+        self.p.positions := self.p.positions -> subSequence(2,self.p.positions -> size());
+      end
+
+    action()
+      begin
+      declare posAux : Tuple(position: Real, moment: Integer);
+        if self.nextBeep <= self.clock.NOW then
+          if self.p.positions -> size() > 0 then
+            posAux := (self.p.positions -> first());
+            if self.clock.NOW >= posAux.moment then
+              self.initialDistance := posAux.position;
+              self.currentDistance := self.initialDistance.poisson;
+              self.p.positions := self.p.positions -> subSequence(2,self.p.positions -> size());
+            end;
+          end;
+    
+          for a in AC.allInstances do
+              self.currentDistance := self.initialDistance.poisson + 1;
+              if (self.currentDistance<= a.maxDistance) then
+                a.beep(self) 
+              end;
+          end;
+          self.nextBeep := self.nextBeep + self.beepPeriod.poisson;
+
+          self.test.record(self);
+        end;
+      end
+end
+
+class PositionsTable
+  attributes
+    positions : Sequence(Tuple(position: Real, moment: Integer))
+end
+
+composition Table between
+    DigitalAvatar [1] role da 
+    PositionsTable [1] role p
+end
+
+class CurrentUser 
+  attributes
+    currentDistance: Real
+    comfortableTemp: Real
+    lastBeep : Integer
+    inside: Boolean init: false
+    confidence : Real derive: 
+      -- Influence the confidence: the last time it beeped
+      let beepWeight : Real = if self.ac.currentBeep - self.lastBeep < ac.beepPeriod then 1.0
+        else if self.ac.currentBeep - self.lastBeep <  2*ac.beepPeriod  then 0.5
+          else if self.ac.currentBeep - self.lastBeep < 3*ac.beepPeriod then 0.3
+              else 0 
+          endif
+        endif
+      endif in
+      let insideWeight : Real = if not(self.inside) then 0.3 else 1.0 endif in
+      beepWeight*insideWeight
+end
+
+class AC < ActiveObject 
+  attributes
+    currentBeep : Integer init: 0
+    tempVariation : Real init: 2.0
+    standByTemp : Real init: 15.0 -- when nobody is in the room
+    maxDistance : Real init: 12.0 -- users farther than this distance are not considered
+    insideDistance : Real init: 5.0 -- room border
+    beepPeriod : Integer init: 60
+
+    currentTemperature : Real init: 21.0
+    optimalTemperature : Real derive = 
+      if self.user -> isEmpty then  -- no users in the room...
+        self.standByTemp 
+      else  
+        let numerator : Real = self.user -> iterate(u;sum: Real = 0.0|sum + u.comfortableTemp*u.confidence/u.currentDistance.power(1/8)) in
+        let denominator : Real = self.user -> iterate(u;sum: Real = 0.0|sum + u.confidence/u.currentDistance.power(1/8)) in
+        numerator/denominator
+      endif
+    peopleHappy : Integer derive: 
+      self.user -> select(inside) -> select(u|
+          u.comfortableTemp-self.tempVariation <= self.optimalTemperature 
+          and u.comfortableTemp+self.tempVariation >= self.optimalTemperature)
+      -> size()
+  operations
+    beep(da: DigitalAvatar)
+      begin
+        declare u: CurrentUser;
+        -- We look for a user matching the call to the method
+        u := self.user -> select(u|u.da = da) -> asSequence() -> first();
+        -- If it is not in our records, we create a record of it
+        if u = null then
+            u := new CurrentUser();
+            insert(u,da) into Presence;
+            insert(self,u) into InRoom;
+        end;
+        -- We update the parameters in our records of the user
+        u.currentDistance := da.currentDistance;
+        u.comfortableTemp := da.comfortableTemp;
+        u.lastBeep := self.currentBeep;
+        -- We check if it is inside the room 
+        if da.currentDistance <= self.insideDistance then
+            u.inside := true;
+        end;
+      end
+    action()
+      begin
+        -- updates the current beep counter
+        self.currentBeep := self.clock.NOW;
+        -- updates the temperature (simulating a progressive update)
+        /*if (self.currentTemperature < self.optimalTemperature) then 
+          self.currentTemperature := (self.currentTemperature + self.tempIncrease)
+        else if (self.currentTemperature > self.optimalTemperature) then 
+          self.currentTemperature := (self.currentTemperature - self.tempIncrease)
+             end
+        end;*/
+        -- prunes the list of recorded users, removing those that have missed more than 2 beeps
+        for u in self.user -> select(u|self.currentBeep - u.lastBeep > self.beepPeriod*3) do
+            delete (self,u) from InRoom; 
+            destroy u;
+        end
+      end
+
+end
+
+composition InRoom between
+    AC [1] role ac 
+    CurrentUser [*] role user
+end
+
+association Presence between
+    CurrentUser [0..1] role user
+    DigitalAvatar [0..1] role da 
+end
+
+class Clock
+  attributes
+    NOW : Integer init: 0
+  operations
+    tick()
+      begin
+        self.NOW := self.NOW + 1;
+        for o in self.ao do 
+            o.action();
+        end
+      end
+    run(n : Integer)
+      begin
+        for i in Sequence{1..n} do
+          self.tick()
+        end 
+      end
+end
+
+abstract class ActiveObject
+  operations
+    action() begin end;
+end
+
+association Action between
+    Clock [1] role clock
+    ActiveObject [*] role ao 
+end
+
+class Test
+attributes
+  c  : Clock
+  ac : AC
+  timestamp: Sequence(Integer) init: Sequence{}
+  requestedTemp: Sequence(Real) init: Sequence{} 
+  optimalTemp: Sequence(Real) init: Sequence{}
+  numUsers: Sequence(Integer) init: Sequence{}  
+  numHappyUsers: Sequence(Integer) init: Sequence{} 
+  distanceToBeacon: Sequence(Real) init: Sequence{}
+  usernameBeep: Sequence(String) init: Sequence{}
+  insideRecord: Sequence(Boolean) init: Sequence{}
+operations
+  record(u1 : DigitalAvatar)
+    begin
+      declare inside: Boolean ;
+      inside := if not(u1.user.oclIsUndefined()) then u1.user.inside else false endif;
+      self.timestamp := self.timestamp -> append(self.c.NOW);
+      self.numUsers := self.numUsers -> append(self.ac.user -> size()); 
+      self.requestedTemp := self.requestedTemp -> append(u1.comfortableTemp); 
+      self.optimalTemp := self.optimalTemp -> append(self.ac.optimalTemperature);   
+      self.numHappyUsers := self.numHappyUsers -> append(self.ac.peopleHappy);  
+      self.distanceToBeacon := self.distanceToBeacon -> append(u1.currentDistance);
+      self.usernameBeep := self.usernameBeep -> append(u1.name);
+      self.insideRecord := self.insideRecord -> append(inside)
+    end
+
+  init_scenario_3()
+    begin
+      declare u1: DigitalAvatar, u2: DigitalAvatar, u3: DigitalAvatar, u4: DigitalAvatar;
+      self.c := new Clock();
+      self.ac := new AC();
+      insert(self.c,self.ac) into Action;
+
+      u1 := new DigitalAvatar();
+      u1.init();
+      u1.name := 'ale';
+      u1.comfortableTemp := 23.0;
+      u1.p.positions := Sequence{Tuple{position = 3.5, moment = 1}};
+      u1.setInitialPosition();
+      insert(self.c, u1) into Action;
+      insert(self, u1) into Recording;
+
+      u2 := new DigitalAvatar();
+      u2.init();
+      u2.name := 'felipe';
+      u2.comfortableTemp := 21.0;
+      u2.p.positions := Sequence{Tuple{position = 3.5, moment = 1},
+              Tuple{position = 10, moment = 601},
+              Tuple{position = 3.5, moment = 1201}};
+      u2.setInitialPosition();
+      insert(self.c, u2) into Action;
+      insert(self, u2) into Recording;
+
+      u3 := new DigitalAvatar();
+      u3.init();
+      u3.name := 'Lucia';
+      u3.comfortableTemp := 20.0;
+      u3.p.positions := Sequence{Tuple{position = 3.5, moment = 1}};
+      u3.setInitialPosition();
+      insert(self.c, u3) into Action;
+      insert(self, u3) into Recording;
+
+      u4 := new DigitalAvatar();
+      u4.init();
+      u4.name := 'Maria';
+      u4.comfortableTemp := 23.5;
+      u4.p.positions := Sequence{Tuple{position = 3.5, moment = 1}};
+      u4.setInitialPosition();
+      insert(self.c, u4) into Action;
+      insert(self, u4) into Recording;
+      self.c.run(1500); -- The test lasts 25 min = 1500 s
+    end
+
+  init_scenario_4()
+    begin
+      declare u1: DigitalAvatar, u2: DigitalAvatar, u3: DigitalAvatar, u4: DigitalAvatar;
+      self.c := new Clock();
+      self.ac := new AC();
+      insert(self.c,self.ac) into Action;
+
+      u1 := new DigitalAvatar();
+      u1.init();
+      u1.name := 'ale';
+      u1.comfortableTemp := 21.0;
+      u1.p.positions := Sequence{Tuple{position = 2, moment = 1}};
+      u1.setInitialPosition();
+      insert(self.c, u1) into Action;
+      insert(self, u1) into Recording;
+
+      u2 := new DigitalAvatar();
+      u2.init();
+      u2.name := 'felipe';
+      u2.comfortableTemp := 20.0;
+      u2.p.positions := Sequence{Tuple{position = 2, moment = 1}};
+      u2.setInitialPosition();
+      insert(self.c, u2) into Action;
+      insert(self, u2) into Recording;
+
+      u3 := new DigitalAvatar();
+      u3.init();
+      u3.name := 'Lucia';
+      u3.comfortableTemp := 23.0;
+      u3.p.positions := Sequence{Tuple{position = 2, moment = 1}};
+      u3.setInitialPosition();
+      insert(self.c, u3) into Action;
+      insert(self, u3) into Recording;
+
+      u4 := new DigitalAvatar();
+      u4.init();
+      u4.name := 'Maria';
+      u4.comfortableTemp := 23.5;
+      u4.p.positions := Sequence{Tuple{position = 2, moment = 1},
+              Tuple{position = 33, moment = 601}};
+      u4.setInitialPosition();
+      insert(self.c, u4) into Action;
+      insert(self, u4) into Recording;
+      self.c.run(1200); -- The test lasts 20 min = 1200 s
+    end
+
+    init_scenario_6()
+    begin
+      declare u1: DigitalAvatar, u2: DigitalAvatar, u3: DigitalAvatar, u4: DigitalAvatar;
+      self.c := new Clock();
+      self.ac := new AC();
+      insert(self.c,self.ac) into Action;
+
+      u1 := new DigitalAvatar();
+      u1.init();
+      u1.name := 'ale';
+      u1.comfortableTemp := 23.0;
+      u1.p.positions := Sequence{Tuple{position = 10, moment = 301},
+              Tuple{position = 30, moment = 901}};
+      u1.setInitialPosition();
+      insert(self.c, u1) into Action;
+      insert(self, u1) into Recording;
+
+      u2 := new DigitalAvatar();
+      u2.init();
+      u2.name := 'felipe';
+      u2.comfortableTemp := 21.0;
+      u2.p.positions := Sequence{Tuple{position = 2, moment = 1}};
+      u2.setInitialPosition();
+      insert(self.c, u2) into Action;
+      insert(self, u2) into Recording;
+
+      u3 := new DigitalAvatar();
+      u3.init();
+      u3.name := 'Lucia';
+      u3.comfortableTemp := 20.0;
+      u3.p.positions := Sequence{Tuple{position = 2, moment = 1}};
+      u3.setInitialPosition();
+      insert(self.c, u3) into Action;
+      insert(self, u3) into Recording;
+
+      u4 := new DigitalAvatar();
+      u4.init();
+      u4.name := 'Maria';
+      u4.comfortableTemp := 23.5;
+      u4.p.positions := Sequence{Tuple{position = 10, moment = 181},
+              Tuple{position = 30, moment = 601}};
+      u4.setInitialPosition();
+      insert(self.c, u4) into Action;
+      insert(self, u4) into Recording;
+      self.c.run(1500); -- The test lasts 25 min = 1500 s
+    end
+
+end
+
+association Recording between
+    Test[1] role test
+    DigitalAvatar [*] role da 
+end
