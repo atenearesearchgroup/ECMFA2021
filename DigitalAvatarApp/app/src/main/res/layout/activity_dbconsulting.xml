@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.apvereda.virtualbeacons.DBConsulting">
+
+    <Button
+        android:id="@+id/querybtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Query" />
+
+    <ScrollView
+        android:id="@+id/ScrollView01"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/resulttxt"
+            android:maxLines="500"
+            android:padding="20dp"
+            android:text="Query Results"
+            android:enabled="true" />
+    </ScrollView>
+</LinearLayout>

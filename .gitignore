@@ -1,0 +1,13 @@
+node_modules
+out.csv
+.vscode/settings.json
+logs/
+*.iml
+.gradle
+/local.properties
+/.idea/workspace.xml
+/.idea/libraries
+.DS_Store
+/build
+/captures
+.externalNativeBuild

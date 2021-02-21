@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  * Esta obra está sujeta a la licencia Reconocimiento-CompartirIgual 4.0 Internacional de
+ * Creative Commons. Para ver una copia de esta licencia,
+ * visite http://creativecommons.org/licenses/by-sa/4.0/.
+ *
+ * CareMe, creado por Alejandro Perez Vereda el 29/7/15.
+ *
+ * This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International
+ * License. To view a copy of this license,
+ * visit http://creativecommons.org/licenses/by-sa/4.0/.
+ *
+ * CareMe, created by Alejandro Perez Vereda on 29/7/15.
+ *
+ * Contact: aperezvereda@gmail.com
+ -->
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:weightSum="1">
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:orientation="horizontal"
+        android:weightSum="1">
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="34dp"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:src="@drawable/bluetooth_icon" />
+
+        <TextView
+            android:id="@+id/lbladdress"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="20dp"
+            android:layout_weight="0.38"
+            android:lines="2"
+            android:maxLines="3"
+            android:text="Calle Jamaica n 25 29010 Malaga"
+            android:textAlignment="viewStart"
+            android:textSize="15dp" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="2dp"
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:background="@color/colorAccent" />
+</LinearLayout>

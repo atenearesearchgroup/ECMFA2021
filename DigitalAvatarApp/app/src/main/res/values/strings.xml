@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">VirtualBeacons</string>
+    <string name="action_settings">Settings</string>
+    <string name="section_format">Hello World from section: %1$d</string>
+    <string name="title_activity_receiver">ReceiverActivity</string>
+    <string name="title_activity_sender">SenderActivity</string>
+    <string name="settings_changeUsername">Set username</string>
+    <string name="settings_restart_server">Restart Server</string>
+    <string name="menu_restart_bluetooth_scan">Rescan</string>
+    <string name="settings_changeTemperature">Change Temperature</string>
+</resources>

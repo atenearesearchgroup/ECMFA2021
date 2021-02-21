@@ -1,0 +1,23 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.apvereda.virtualbeacons.MainActivity">
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="100"
+        android:title="@string/settings_changeUsername"
+        android:icon="@drawable/user_icon"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_set_temperature"
+        android:orderInCategory="100"
+        android:title="@string/settings_changeTemperature"
+        android:icon="@drawable/ic_ac_unit_black_24dp"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id ="@+id/action_restart_server"
+        android:orderInCategory="200"
+        android:title="@string/settings_restart_server"
+        />
+
+</menu>
